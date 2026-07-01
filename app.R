@@ -29,6 +29,7 @@ source("modules/mod_mutation_analysis.R")
 source("modules/mod_visualisation.R")
 source("modules/mod_comparison.R")
 source("modules/mod_enrichment.R")
+source("R/colours.R")
 
 ui <- fluidPage(
   

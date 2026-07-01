@@ -109,14 +109,38 @@ mod_mutation_analysis_server <- function(id,
         
         req(input$fastq)
         
-        run_mutation_analysis(
-          fastq_file = input$fastq$datapath,
-          ref_protein = input$ref_protein,
-          left_flank = input$left_flank,
-          right_flank = input$right_flank,
-          min_count = input$min_count,
-          min_freq = input$min_freq
+        withProgress(
+          
+          message = "Processing FASTQ",
+          value = 0,
+          
+          {
+            
+            incProgress(
+              0.1,
+              detail = "Reading sequences"
+            )
+            
+            result <- run_mutation_analysis(
+              fastq_file = input$fastq$datapath,
+              ref_protein = input$ref_protein,
+              left_flank = input$left_flank,
+              right_flank = input$right_flank,
+              min_count = input$min_count,
+              min_freq = input$min_freq
+            )
+            
+            incProgress(
+              0.9,
+              detail = "Finalising results"
+            )
+            
+            result
+            
+          }
+          
         )
+        
       }
     )
     
@@ -134,12 +158,20 @@ mod_mutation_analysis_server <- function(id,
         
         metadata = list(
           
+          ref_protein = input$ref_protein,
+          
+          left_flank = input$left_flank,
+          
+          right_flank = input$right_flank,
+          
           min_count = input$min_count,
           
           min_freq = input$min_freq
+          
         ),
         
         results = results()
+        
       )
       
       current <- datasets()
@@ -149,6 +181,22 @@ mod_mutation_analysis_server <- function(id,
       datasets(current)
       
       active_dataset(ds$name)
+      
+      showNotification(
+        paste(
+          "Dataset created:",
+          ds$name
+        ),
+        type = "message",
+        duration = 5
+      )
+      
+      updateTabsetPanel(
+        session,
+        "main_tabs",
+        selected = "Visualisation"
+      )
+      
     })
     
     output$qc <- renderTable({
