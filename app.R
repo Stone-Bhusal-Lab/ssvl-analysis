@@ -8,7 +8,11 @@ library(DT)
 library(r3dmol)
 library(htmlwidgets)
 
-app_password <- Sys.getenv("APP_PASSWORD")
+source("config/defaults.R")
+source("R/fastq_processing.R")
+source("R/plots.R")
+
+app_password <- "test123"
 
 taylor_muted <- c(
   A = "#99b300", R = "#3b3bb3", N = "#9933b3", D = "#cc3333",
@@ -41,48 +45,392 @@ ui <- fluidPage(
   conditionalPanel(
     condition = "output.auth",
     
-    titlePanel("Mutation Explorer + Structure"),
-    
-    sidebarLayout(
+    tabsetPanel(
       
-      sidebarPanel(width = 3,
-                   
-                   fileInput("files", "Upload datasets", multiple = TRUE),
-                   selectInput("dataset", "Dataset", choices = NULL),
-                   
-                   fileInput("pdb", "Upload PDB"),
-                   selectInput("chain", "Chain", choices = c("A","B","C")),
-                   
-                   sliderInput("nbes_high_q", "NBES high", 0.8, 0.99, 0.95),
-                   sliderInput("nbes_low_q",  "NBES low",  0.01, 0.2, 0.05),
-                   
-                   selectInput("structure_colour", "Structure colour",
-                               c("NBES","Deviation")),
-                   
-                   actionButton("clear_selection", "Clear selection"),
-                   
-                   downloadButton("plot", "Export plot")
+      tabPanel(
+        "FASTQ Analysis",
+        
+        br(),
+        
+        sidebarLayout(
+          
+          sidebarPanel(
+            
+            fileInput(
+              "fastq",
+              "Upload merged FASTQ"
+            ),
+            
+            numericInput(
+              "min_count",
+              "Minimum read count",
+              value = DEFAULT_MIN_COUNT
+            ),
+            
+            numericInput(
+              "min_freq",
+              "Minimum frequency",
+              value = DEFAULT_MIN_FREQ
+            ),
+            
+            textAreaInput(
+              "ref_protein",
+              "Reference protein",
+              value = DEFAULT_REF_PROTEIN,
+              rows = 4
+            ),
+            
+            textInput(
+              "left_flank",
+              "Left flank",
+              value = DEFAULT_LEFT_FLANK
+            ),
+            
+            textInput(
+              "right_flank",
+              "Right flank",
+              value = DEFAULT_RIGHT_FLANK
+            ),
+            
+            actionButton(
+              "run_analysis",
+              "Run Analysis"
+            ),
+            hr(),
+            
+            downloadButton(
+              "download_single_mutants",
+              "Download Single Mutants"
+            ),
+            
+            downloadButton(
+              "download_all_variants",
+              "Download All Variants (Unfiltered)"
+            )
+            
+          ),
+          
+          mainPanel(
+            
+            h3("Mutation Analysis"),
+            fluidRow(
+              column(3, wellPanel(
+                h4("Reads"),
+                textOutput("qc_total_reads")
+              )),
+              
+              column(3, wellPanel(
+                h4("Valid Inserts"),
+                textOutput("qc_valid_inserts")
+              )),
+              
+              column(3, wellPanel(
+                h4("Extraction Rate"),
+                textOutput("qc_extraction_rate")
+              )),
+              
+              column(3, wellPanel(
+                h4("Filtered Haplotypes"),
+                textOutput("qc_filtered_haplotypes")
+              ))
+            ),
+            plotOutput("haplotype_distribution"),
+            DTOutput("analysis_table")
+            
+          )
+        )
       ),
       
-      mainPanel(
+      tabPanel(
+        "Explorer",
         
-        fluidRow(
-          column(6, plotlyOutput("interactive")),
-          column(6, plotOutput("labelled"))
-        ),
+        titlePanel("Mutation Explorer + Structure"),
         
-        r3dmolOutput("structure", height = "500px"),
-        DTOutput("table")
+        sidebarLayout(
+          
+          sidebarPanel(
+            width = 3,
+            
+            fileInput("files", "Upload datasets", multiple = TRUE),
+            selectInput("dataset", "Dataset", choices = NULL),
+            
+            fileInput("pdb", "Upload PDB"),
+            selectInput("chain", "Chain", choices = c("A","B","C")),
+            
+            sliderInput(
+              "nbes_high_q",
+              "NBES high",
+              0.8,
+              0.99,
+              0.95
+            ),
+            
+            sliderInput(
+              "nbes_low_q",
+              "NBES low",
+              0.01,
+              0.2,
+              0.05
+            ),
+            
+            selectInput(
+              "structure_colour",
+              "Structure colour",
+              c("NBES","Deviation")
+            ),
+            
+            actionButton(
+              "clear_selection",
+              "Clear selection"
+            ),
+            
+            downloadButton(
+              "plot",
+              "Export plot"
+            )
+          ),
+          
+          mainPanel(
+            
+            fluidRow(
+              column(6, plotlyOutput("interactive")),
+              column(6, plotOutput("labelled"))
+            ),
+            
+            r3dmolOutput(
+              "structure",
+              height = "500px"
+            ),
+            
+            
+            DTOutput("table")
+          )
+        )
       )
     )
   )
 )
 
 server <- function(input, output, session) {
+  analysis_results <- eventReactive(
+    input$run_analysis,
+    {
+      
+      req(input$fastq)
+      
+      withProgress(
+        message = "Processing FASTQ",
+        value = 0,
+        {
+          
+          incProgress(
+            0.2,
+            detail = "Reading sequences"
+          )
+          
+          result <- run_mutation_analysis(
+            fastq_file = input$fastq$datapath,
+            ref_protein = input$ref_protein,
+            left_flank = input$left_flank,
+            right_flank = input$right_flank,
+            min_count = input$min_count,
+            min_freq = input$min_freq
+          )
+          
+          incProgress(
+            0.8,
+            detail = "Finalising results"
+          )
+          
+          result
+        }
+      )
+    }
+  )
+  output$analysis_table <- renderDT({
+    
+    req(analysis_results())
+    
+    analysis_results()$single_mutants
+    
+  })
+  
+  output$haplotype_distribution <- renderPlot({
+    
+    req(analysis_results())
+    
+    plot_haplotype_distribution(
+      haplo_df_raw = analysis_results()$haplo_df_raw,
+      min_count = input$min_count
+    )
+    
+  })
+  output$qc_total_reads <- renderText({
+    
+    req(analysis_results())
+    
+    format(
+      analysis_results()$qc$total_reads,
+      big.mark = ","
+    )
+    
+  })
+  output$qc_valid_inserts <- renderText({
+    
+    req(analysis_results())
+    
+    format(
+      analysis_results()$qc$valid_inserts,
+      big.mark = ","
+    )
+    
+  })
+  output$qc_extraction_rate <- renderText({
+    
+    req(analysis_results())
+    
+    qc <- analysis_results()$qc
+    
+    paste0(
+      round(
+        100 * qc$valid_inserts / qc$total_reads,
+        1
+      ),
+      "%"
+    )
+    
+  })
+  output$qc_filtered_haplotypes <- renderText({
+    
+    req(analysis_results())
+    
+    format(
+      analysis_results()$qc$unique_haplotypes_filtered,
+      big.mark = ","
+    )
+    
+  })
+  
+  output$download_single_mutants <- downloadHandler(
+    
+    filename = function() {
+      paste0(
+        "single_mutants_",
+        Sys.Date(),
+        ".tsv"
+      )
+    },
+    
+    content = function(file) {
+      
+      req(analysis_results())
+      
+      write.table(
+        analysis_results()$single_mutants,
+        file,
+        sep = "\t",
+        row.names = FALSE,
+        quote = FALSE
+      )
+    }
+  )
+  
+  output$download_all_variants <- downloadHandler(
+    
+    filename = function() {
+      paste0(
+        "all_variants_unfiltered_",
+        Sys.Date(),
+        ".tsv"
+      )
+    },
+    
+    content = function(file) {
+      
+      req(analysis_results())
+      
+      write.table(
+        analysis_results()$haplo_df_raw,
+        file,
+        sep = "\t",
+        row.names = FALSE,
+        quote = FALSE
+      )
+    }
+  )
+  
+  
+  output$analysis_summary <- renderPrint({
+    
+    req(analysis_results())
+    
+    qc <- analysis_results()$qc
+    
+    cat(
+      "Total reads:",
+      qc$total_reads,
+      "\n"
+    )
+    
+    cat(
+      "Valid inserts:",
+      qc$valid_inserts,
+      "\n"
+    )
+    
+    cat(
+      "Extraction rate:",
+      round(
+        100 * qc$valid_inserts / qc$total_reads,
+        1
+      ),
+      "%\n"
+    )
+    
+    cat(
+      "Unique haplotypes (raw):",
+      qc$unique_haplotypes_raw,
+      "\n"
+    )
+    
+    cat(
+      "Unique haplotypes (filtered):",
+      qc$unique_haplotypes_filtered,
+      "\n\n"
+    )
+    
+    cat(
+      "Single mutant entries:",
+      nrow(analysis_results()$single_mutants),
+      "\n"
+    )
+    
+    cat(
+      "Missense variants:",
+      nrow(analysis_results()$missense),
+      "\n"
+    )
+    
+    cat(
+      "In-frame deletions:",
+      nrow(analysis_results()$indels),
+      "\n"
+    )
+    
+    cat(
+      "Frameshifts:",
+      nrow(analysis_results()$frameshifts),
+      "\n"
+    )
+    
+  })
+  
   
   auth <- reactiveVal(FALSE)
   observeEvent(input$login, {
-    if (input$password == app_password) auth(TRUE)
+    if (input$password == app_password) {
+      auth(TRUE)
+    }
   })
   output$auth <- reactive(auth())
   outputOptions(output, "auth", suspendWhenHidden = FALSE)
