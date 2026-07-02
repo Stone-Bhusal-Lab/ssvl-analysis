@@ -130,22 +130,146 @@ plot_variant_class_reads <- function(haplo_df) {
       y = "Total Reads"
     )
 }
-# Variant QC Summary
-variant_qc_summary <- function(haplo_df) {
+
+# enirchment distribution
+plot_enrichment_distribution <- function(
+    enrichment_df
+){
   
-  total_reads <- sum(haplo_df$count)
+  ggplot(
+    enrichment_df,
+    aes(log2E_norm)
+  ) +
+    
+    geom_histogram(
+      bins = 50
+    ) +
+    
+    scale_y_continuous(
+      breaks = scales::pretty_breaks()
+    ) +
+    
+    theme_minimal() +
+    
+    labs(
+      title = "WT-Normalised Enrichment",
+      x = "log2E_norm",
+      y = "Number of Variants"
+    )
   
-  haplo_df %>%
-    dplyr::group_by(variant_class) %>%
-    dplyr::summarise(
-      n_variants = dplyr::n(),
-      total_reads = sum(count),
-      pct_reads = 100 * sum(count) / total_reads,
-      mean_frequency = mean(freq),
-      .groups = "drop"
+}
+# enrichment by positon
+plot_position_enrichment <- function(
+    enrichment_df
+){
+  
+  enrichment_df %>%
+    
+    mutate(
+      
+      position = as.numeric(
+        stringr::str_extract(
+          mutation,
+          "\\d+"
+        )
+      )
+      
     ) %>%
-    dplyr::arrange(
-      dplyr::desc(total_reads)
+    
+    filter(
+      !is.na(position)
+    ) %>%
+    
+    ggplot(
+      
+      aes(
+        position,
+        log2E_norm
+      )
+      
+    ) +
+    
+    geom_point(
+      alpha = 0.6
+    ) +
+    
+    theme_minimal()
+  
+}
+
+# ============================================================================
+# NBES DISTRIBUTION
+# ============================================================================
+
+plot_nbes_distribution <- function(
+    nbes_df
+){
+  
+  ggplot(
+    nbes_df,
+    aes(NBES)
+  ) +
+    
+    geom_histogram(
+      bins = 50
+    ) +
+    
+    theme_minimal() +
+    
+    labs(
+      title = "NBES Distribution",
+      x = "NBES",
+      y = "Count"
+    )
+  
+}
+
+
+
+# ============================================================================
+# POSITION VS NBES
+# ============================================================================
+
+plot_position_nbes <- function(
+    nbes_df
+){
+  
+  nbes_df %>%
+    
+    mutate(
+      
+      position = as.numeric(
+        stringr::str_extract(
+          mutation,
+          "\\d+"
+        )
+      )
+      
+    ) %>%
+    
+    filter(
+      !is.na(position)
+    ) %>%
+    
+    ggplot(
+      
+      aes(
+        position,
+        NBES
+      )
+      
+    ) +
+    
+    geom_point(
+      alpha = 0.6
+    ) +
+    
+    theme_minimal() +
+    
+    labs(
+      title = "Position vs NBES",
+      x = "Position",
+      y = "NBES"
     )
   
 }

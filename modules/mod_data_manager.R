@@ -262,34 +262,100 @@ mod_data_manager_server <- function(
             
             function(ds) {
               
-              qc <- ds$results$qc
+              if (ds$stage == "mutation") {
+                
+                qc <- ds$results$qc
+                
+                return(
+                  
+                  data.frame(
+                    
+                    Dataset = ds$name,
+                    
+                    Stage = ds$stage,
+                    
+                    Source = ds$source,
+                    
+                    Reads = qc$total_reads,
+                    
+                    Variants = nrow(
+                      ds$results$single_mutants
+                    ),
+                    
+                    Created = format(
+                      ds$created,
+                      "%Y-%m-%d %H:%M"
+                    ),
+                    
+                    check.names = FALSE
+                    
+                  )
+                  
+                )
+                
+              }
               
-              data.frame(
+              if (ds$stage == "enrichment") {
                 
-                Dataset = ds$name,
+                s <- ds$metadata$enrichment_summary
                 
-                Stage = ds$stage,
+                return(
+                  
+                  data.frame(
+                    
+                    Dataset = ds$name,
+                    
+                    Stage = ds$stage,
+                    
+                    Source = ds$source,
+                    
+                    Reads = NA,
+                    
+                    Variants = s$n_variants_used,
+                    
+                    Created = format(
+                      ds$created,
+                      "%Y-%m-%d %H:%M"
+                    ),
+                    
+                    check.names = FALSE
+                    
+                  )
+                  
+                )
                 
-                Source = ds$source,
+              }
+              
+              if (ds$stage == "nbes") {
                 
-                Reads = qc$total_reads,
+                s <- ds$metadata$nbes_summary
                 
-                Valid_Inserts = qc$valid_inserts,
+                return(
+                  
+                  data.frame(
+                    
+                    Dataset = ds$name,
+                    
+                    Stage = ds$stage,
+                    
+                    Source = ds$source,
+                    
+                    Reads = NA,
+                    
+                    Variants = s$n_variants_used,
+                    
+                    Created = format(
+                      ds$created,
+                      "%Y-%m-%d %H:%M"
+                    ),
+                    
+                    check.names = FALSE
+                    
+                  )
+                  
+                )
                 
-                Filtered_Haplotypes =
-                  qc$unique_haplotypes_filtered,
-                
-                Single_Mutants =
-                  nrow(ds$results$single_mutants),
-                
-                Created = format(
-                  ds$created,
-                  "%Y-%m-%d %H:%M"
-                ),
-                
-                check.names = FALSE
-                
-              )
+              }
               
             }
             
@@ -526,63 +592,106 @@ mod_data_manager_server <- function(
           "\n\n"
         )
         
-        if (!is.null(ds$metadata)) {
+        if(ds$stage == "mutation"){
+          
+          qc <- ds$results$qc
           
           cat(
-            "Analysis Parameters\n"
+            "QC Summary\n"
           )
           
           cat(
-            "-------------------\n"
+            "----------\n"
           )
           
-          for (nm in names(ds$metadata)) {
-            
-            cat(
-              nm,
-              ":",
-              ds$metadata[[nm]],
-              "\n"
-            )
-            
-          }
+          cat(
+            "Reads:",
+            qc$total_reads,
+            "\n"
+          )
           
-          cat("\n")
+          cat(
+            "Valid Inserts:",
+            qc$valid_inserts,
+            "\n"
+          )
+          
+          cat(
+            "Filtered Haplotypes:",
+            qc$unique_haplotypes_filtered,
+            "\n"
+          )
           
         }
         
-        qc <- ds$results$qc
+        if(ds$stage == "enrichment"){
+          
+          s <- ds$metadata$enrichment_summary
+          
+          cat(
+            "Enrichment Summary\n"
+          )
+          
+          cat(
+            "------------------\n"
+          )
+          
+          cat(
+            "Variants Used:",
+            s$n_variants_used,
+            "\n"
+          )
+          
+          cat(
+            "Variants Dropped:",
+            s$n_variants_dropped,
+            "\n"
+          )
+          
+          cat(
+            "WT log2E:",
+            round(
+              s$wt_log2E,
+              3
+            ),
+            "\n"
+          )
+          
+        }
         
-        cat(
-          "QC Metrics\n"
-        )
-        
-        cat(
-          "----------\n"
-        )
-        
-        cat(
-          "Total Reads:",
-          qc$total_reads,
-          "\n"
-        )
-        
-        cat(
-          "Valid Inserts:",
-          qc$valid_inserts,
-          "\n"
-        )
-        
-        cat(
-          "Filtered Haplotypes:",
-          qc$unique_haplotypes_filtered,
-          "\n"
-        )
+        if(ds$stage == "nbes"){
+          
+          s <- ds$metadata$nbes_summary
+          
+          cat(
+            "NBES Summary\n"
+          )
+          
+          cat(
+            "------------\n"
+          )
+          
+          cat(
+            "Variants Used:",
+            s$n_variants_used,
+            "\n"
+          )
+          
+          cat(
+            "High Dataset:",
+            ds$metadata$high_dataset,
+            "\n"
+          )
+          
+          cat(
+            "Low Dataset:",
+            ds$metadata$low_dataset,
+            "\n"
+          )
+          
+        }
         
       })
-      
-      
-      
       # ----------------------------------------------------------------------
       # Export Active Dataset
       # ----------------------------------------------------------------------

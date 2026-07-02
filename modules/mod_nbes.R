@@ -1,8 +1,8 @@
 # ============================================================================
-# ENRICHMENT MODULE - UI
+# NBES MODULE - UI
 # ============================================================================
 
-mod_enrichment_ui <- function(id){
+mod_nbes_ui <- function(id){
   
   ns <- NS(id)
   
@@ -12,28 +12,28 @@ mod_enrichment_ui <- function(id){
       
       sidebarPanel(
         
-        h3("Enrichment Analysis"),
+        h3("NBES Analysis"),
         
         selectInput(
-          ns("presort_dataset"),
-          "Pre-sort Library",
+          ns("high_dataset"),
+          "High Binder Enrichment Dataset",
           choices = NULL
         ),
         
         selectInput(
-          ns("selected_dataset"),
-          "Selected Library",
+          ns("low_dataset"),
+          "Low Binder Enrichment Dataset",
           choices = NULL
         ),
         
         textInput(
-          ns("enrichment_name"),
-          "Enrichment Dataset Name"
+          ns("dataset_name"),
+          "NBES Dataset Name"
         ),
         
         actionButton(
-          ns("run_enrichment"),
-          "Run Enrichment"
+          ns("run_nbes"),
+          "Generate NBES"
         )
         
       ),
@@ -60,12 +60,11 @@ mod_enrichment_ui <- function(id){
   
 }
 
-
 # ============================================================================
-# ENRICHMENT MODULE - SERVER
+# NBES MODULE - SERVER
 # ============================================================================
 
-mod_enrichment_server <- function(
+mod_nbes_server <- function(
     id,
     datasets,
     active_dataset
@@ -78,19 +77,19 @@ mod_enrichment_server <- function(
     function(input, output, session){
       
       # ----------------------------------------------------------------------
-      # Populate Dataset Selectors
+      # Available Enrichment Datasets
       # ----------------------------------------------------------------------
       
       observe({
         
-        mutation_datasets <- names(
+        enrichment_datasets <- names(
           
           Filter(
             
             function(x){
               
               !is.null(x$stage) &&
-                x$stage == "mutation"
+                x$stage == "enrichment"
               
             },
             
@@ -102,14 +101,14 @@ mod_enrichment_server <- function(
         
         updateSelectInput(
           session,
-          "presort_dataset",
-          choices = mutation_datasets
+          "high_dataset",
+          choices = enrichment_datasets
         )
         
         updateSelectInput(
           session,
-          "selected_dataset",
-          choices = mutation_datasets
+          "low_dataset",
+          choices = enrichment_datasets
         )
         
       })
@@ -120,60 +119,55 @@ mod_enrichment_server <- function(
       # Dataset Reactives
       # ----------------------------------------------------------------------
       
-      presort_dataset <- reactive({
+      high_dataset <- reactive({
         
-        req(input$presort_dataset)
+        req(input$high_dataset)
         
-        datasets()[[input$presort_dataset]]
+        datasets()[[input$high_dataset]]
         
       })
       
       
       
-      selected_dataset <- reactive({
+      low_dataset <- reactive({
         
-        req(input$selected_dataset)
+        req(input$low_dataset)
         
-        datasets()[[input$selected_dataset]]
+        datasets()[[input$low_dataset]]
         
       })
       
       
       
       # ----------------------------------------------------------------------
-      # Dataset Summary
+      # Summary
       # ----------------------------------------------------------------------
       
       output$dataset_summary <- renderTable({
         
         req(
-          presort_dataset(),
-          selected_dataset()
+          high_dataset(),
+          low_dataset()
         )
         
         data.frame(
           
           Dataset = c(
-            presort_dataset()$name,
-            selected_dataset()$name
+            high_dataset()$name,
+            low_dataset()$name
           ),
           
           Role = c(
-            "Pre-sort",
-            "Selected"
+            "High Binder",
+            "Low Binder"
           ),
           
-          Reads = c(
-            presort_dataset()$results$qc$total_reads,
-            selected_dataset()$results$qc$total_reads
-          ),
-          
-          Single_Mutants = c(
+          Variants = c(
             nrow(
-              presort_dataset()$results$single_mutants
+              high_dataset()$results$enrichment
             ),
             nrow(
-              selected_dataset()$results$single_mutants
+              low_dataset()$results$enrichment
             )
           )
           
@@ -184,14 +178,14 @@ mod_enrichment_server <- function(
       
       
       # ----------------------------------------------------------------------
-      # Variant Preview
+      # Preview
       # ----------------------------------------------------------------------
       
       output$preview <- DT::renderDT({
         
-        req(selected_dataset())
+        req(high_dataset())
         
-        selected_dataset()$results$single_mutants
+        high_dataset()$results$enrichment
         
       },
       options = list(
@@ -202,68 +196,71 @@ mod_enrichment_server <- function(
       
       
       # ----------------------------------------------------------------------
-      # Run Enrichment
+      # Run NBES Analysis
       # ----------------------------------------------------------------------
       
       observeEvent(
-        input$run_enrichment,
+        input$run_nbes,
         {
-          
-          req(
-            presort_dataset(),
-            selected_dataset()
-          )
           
           validate(
             
             need(
-              input$presort_dataset != input$selected_dataset,
-              "Pre-sort and selected datasets must be different."
+              input$high_dataset != input$low_dataset,
+              "High and low binder datasets must be different."
             )
             
           )
           
-          enrichment_results <- calculate_enrichment(
+          
+          
+          nbes_results <- calculate_nbes(
             
-            presort_df =
-              presort_dataset()$results$single_mutants,
+            high_df =
+              high_dataset()$results$enrichment,
             
-            selected_df =
-              selected_dataset()$results$single_mutants
+            low_df =
+              low_dataset()$results$enrichment
             
           )
           
           
           
           dataset_name <- trimws(
-            input$enrichment_name
+            input$dataset_name
           )
           
           if(dataset_name == ""){
             
             dataset_name <- paste0(
-              selected_dataset()$name,
+              
+              high_dataset()$name,
+              
               "_vs_",
-              presort_dataset()$name
+              
+              low_dataset()$name,
+              
+              "_NBES"
+              
             )
             
           }
           
           
           
-          enr_ds <- create_enrichment_dataset(
+          nbes_ds <- create_nbes_dataset(
             
-            enrichment_results =
-              enrichment_results,
+            nbes_results =
+              nbes_results,
             
             dataset_name =
               dataset_name,
             
-            presort_name =
-              input$presort_dataset,
+            high_dataset =
+              input$high_dataset,
             
-            selected_name =
-              input$selected_dataset
+            low_dataset =
+              input$low_dataset
             
           )
           
@@ -271,7 +268,7 @@ mod_enrichment_server <- function(
           
           current <- datasets()
           
-          current[[dataset_name]] <- enr_ds
+          current[[dataset_name]] <- nbes_ds
           
           datasets(current)
           
@@ -281,24 +278,15 @@ mod_enrichment_server <- function(
           
           
           
-          summary <- enrichment_results$summary
-          
           showNotification(
             
-            paste0(
-              "Created enrichment dataset: ",
-              dataset_name,
-              " | Used: ",
-              summary$n_variants_used,
-              " variants | Dropped: ",
-              summary$n_variants_dropped,
-              " (",
-              summary$pct_variants_dropped,
-              "%)"
+            paste(
+              "Created NBES dataset:",
+              dataset_name
             ),
             
             type = "message",
-            duration = 8
+            duration = 5
             
           )
           

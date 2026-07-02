@@ -23,13 +23,18 @@ source("config/defaults.R")
 source("R/datasets.R")
 source("R/fastq_processing.R")
 source("R/plots.R")
+source("R/enrichment_analysis.R")
+source("R/colours.R")
+source("R/tables.R")
+source("R/nbes_analysis.R")
 
 source("modules/mod_data_manager.R")
 source("modules/mod_mutation_analysis.R")
 source("modules/mod_visualisation.R")
 source("modules/mod_comparison.R")
 source("modules/mod_enrichment.R")
-source("R/colours.R")
+source("modules/mod_nbes.R")
+
 
 ui <- fluidPage(
   
@@ -51,6 +56,11 @@ ui <- fluidPage(
     tabPanel(
       "Enrichment Analysis",
       mod_enrichment_ui("enrich")
+    ),
+    
+    tabPanel(
+      "NBES",
+      mod_nbes_ui("nbes")
     ),
     
     tabPanel(
@@ -97,6 +107,12 @@ server <- function(input, output, session) {
   
   mod_enrichment_server(
     "enrich",
+    datasets,
+    active_dataset
+  )
+  
+  mod_nbes_server(
+    "nbes",
     datasets,
     active_dataset
   )
