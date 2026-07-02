@@ -119,6 +119,14 @@ mod_visualisation_ui <- function(id) {
       
       DT::DTOutput(
         ns("top_depleted")
+      ),
+      
+      hr(),
+      
+      h4("Position Summary"),
+      
+      DT::DTOutput(
+        ns("position_enrichment_summary")
       )
       
     ),
@@ -172,6 +180,14 @@ mod_visualisation_ui <- function(id) {
       
       DT::DTOutput(
         ns("top_negative_nbes")
+      ),
+      
+      hr(),
+      
+      h4("Position Summary"),
+      
+      DT::DTOutput(
+        ns("position_nbes_summary")
       )
       
     ),
@@ -615,6 +631,18 @@ mod_visualisation_server <- function(
         scrollX = TRUE
       ))
       
+      output$position_enrichment_summary <- DT::renderDT({
+        
+        position_summary_enrichment(
+          enrichment_df()
+        )
+        
+      },
+      options = list(
+        pageLength = 20,
+        scrollX = TRUE
+      ))
+      
       # ----------------------------------------------------------------------
       # NBES Plots
       # ----------------------------------------------------------------------
@@ -654,6 +682,18 @@ mod_visualisation_server <- function(
       output$top_negative_nbes <- DT::renderDT({
         
         top_negative_nbes(
+          nbes_df()
+        )
+        
+      },
+      options = list(
+        pageLength = 20,
+        scrollX = TRUE
+      ))
+      
+      output$position_nbes_summary <- DT::renderDT({
+        
+        position_summary_nbes(
           nbes_df()
         )
         

@@ -97,4 +97,23 @@ top_negative_nbes <- function(
     )
   
 }
+# ============================================================================
+# POSITION SUMMARY TABLES
+# ============================================================================
 
+position_summary_enrichment <- function(enrichment_df) {
+  
+  summarise_enrichment_by_position(
+    enrichment_df
+  )
+  
+}
+
+
+position_summary_nbes <- function(nbes_df) {
+  
+  summarise_nbes_by_position(
+    nbes_df
+  )
+  
+}

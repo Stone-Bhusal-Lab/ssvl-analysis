@@ -273,3 +273,42 @@ plot_position_nbes <- function(
     )
   
 }
+# ============================================================================
+# POSITION IMPORTANCE
+# ============================================================================
+
+plot_residue_importance <- function(residue_summary) {
+  ggplot(
+    residue_summary,
+    aes(residue, mean_abs_nbes)
+  ) +
+    geom_col() +
+    labs(
+      x = "Position",
+      y = "Mean |NBES|",
+      title = "Position Importance"
+    ) +
+    theme_minimal()
+}
+# ============================================================================
+# POSITION ENRICHMENT PROFILE
+# ============================================================================
+
+plot_residue_profile <- function(residue_summary) {
+  
+  ggplot(
+    residue_summary,
+    aes(x = residue, y = mean_nbes)
+  ) +
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed"
+    ) +
+    geom_line() +
+    geom_point() +
+    labs(
+      x = "Residue",
+      y = "Mean NBES"
+    ) +
+    theme_minimal()
+}

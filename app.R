@@ -27,6 +27,7 @@ source("R/enrichment_analysis.R")
 source("R/colours.R")
 source("R/tables.R")
 source("R/nbes_analysis.R")
+source("R/position_analysis.R")
 
 source("modules/mod_data_manager.R")
 source("modules/mod_mutation_analysis.R")
