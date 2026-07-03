@@ -153,8 +153,12 @@ create_nbes_dataset <- function(
     
     results = list(
       
-      nbes =
-        nbes_results$nbes_df
+      nbes = nbes_results$nbes_df,
+      
+      position_summary =
+        summarise_nbes_by_position(
+          nbes_results$nbes_df
+        )
       
     )
     

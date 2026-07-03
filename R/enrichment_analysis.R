@@ -222,6 +222,11 @@ create_enrichment_dataset <- function(
       enrichment =
         enrichment_results$enrichment_df,
       
+      position_summary =
+        summarise_enrichment_by_position(
+          enrichment_results$enrichment_df
+        ),
+      
       dropped_variants =
         enrichment_results$dropped_variants
       

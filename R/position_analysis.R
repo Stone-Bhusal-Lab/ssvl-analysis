@@ -1,8 +1,8 @@
 # ============================================================
-# Residue-level summary functions
+# position-level summary functions
 # ============================================================
 # ------------------------------------------------------------
-# Extract residue position from mutation string
+# Extract position position from mutation string
 # Examples:
 # WT     -> NA
 # A23V   -> 23
@@ -10,7 +10,7 @@
 # G56*   -> 56
 # ------------------------------------------------------------
 
-extract_residue_position <- function(mutation) {
+extract_position_position <- function(mutation) {
   
   position <- gsub("[A-Za-z\\*]", "", mutation)
   
@@ -19,10 +19,10 @@ extract_residue_position <- function(mutation) {
 
 
 # ------------------------------------------------------------
-# Add residue column to variant table
+# Add position column to variant table
 # ------------------------------------------------------------
 
-add_residue_column <- function(df,
+add_position_column <- function(df,
                                mutation_col = "mutation") {
   
   if (!mutation_col %in% names(df)) {
@@ -31,17 +31,17 @@ add_residue_column <- function(df,
   
   df %>%
     mutate(
-      residue = ifelse(
+      position = ifelse(
         .data[[mutation_col]] == "WT",
         NA_real_,
-        extract_residue_position(.data[[mutation_col]])
+        extract_position_position(.data[[mutation_col]])
       )
     )
 }
 
 
 # ------------------------------------------------------------
-# Enrichment residue summary
+# Enrichment position summary
 #
 # Requires:
 # mutation
@@ -51,7 +51,7 @@ add_residue_column <- function(df,
 # log2E_norm
 # ------------------------------------------------------------
 
-summarise_enrichment_by_residue <- function(df) {
+summarise_enrichment_by_position <- function(df) {
   
   required_cols <- c("mutation", "log2E")
   
@@ -64,11 +64,11 @@ summarise_enrichment_by_residue <- function(df) {
     )
   }
   
-  df <- add_residue_column(df)
+  df <- add_position_column(df)
   
   df %>%
     filter(mutation != "WT") %>%
-    group_by(residue) %>%
+    group_by(position) %>%
     summarise(
       n_variants = n(),
       
@@ -84,7 +84,7 @@ summarise_enrichment_by_residue <- function(df) {
       
       .groups = "drop"
     ) %>%
-    arrange(residue)
+    arrange(position)
 }
 
 
@@ -96,7 +96,7 @@ summarise_enrichment_by_residue <- function(df) {
 # log2E_norm
 # ------------------------------------------------------------
 
-summarise_enrichment_norm_by_residue <- function(df) {
+summarise_enrichment_norm_by_position <- function(df) {
   
   required_cols <- c("mutation", "log2E_norm")
   
@@ -109,11 +109,11 @@ summarise_enrichment_norm_by_residue <- function(df) {
     )
   }
   
-  df <- add_residue_column(df)
+  df <- add_position_column(df)
   
   df %>%
     filter(mutation != "WT") %>%
-    group_by(residue) %>%
+    group_by(position) %>%
     summarise(
       n_variants = n(),
       
@@ -129,12 +129,12 @@ summarise_enrichment_norm_by_residue <- function(df) {
       
       .groups = "drop"
     ) %>%
-    arrange(residue)
+    arrange(position)
 }
 
 
 # ------------------------------------------------------------
-# NBES residue summary
+# NBES position summary
 #
 # Requires:
 # mutation
@@ -154,11 +154,11 @@ summarise_nbes_by_position <- function(df) {
     )
   }
   
-  df <- add_residue_column(df)
+  df <- add_position_column(df)
   
   df %>%
     filter(mutation != "WT") %>%
-    group_by(residue) %>%
+    group_by(position) %>%
     summarise(
       n_variants = n(),
       
@@ -174,5 +174,5 @@ summarise_nbes_by_position <- function(df) {
       
       .groups = "drop"
     ) %>%
-    arrange(residue)
+    arrange(position)
 }

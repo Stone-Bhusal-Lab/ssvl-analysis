@@ -35,6 +35,36 @@ mod_data_manager_ui <- function(id) {
         ),
         
         hr(),
+        h4("Workspace"),
+        
+        
+        
+        wellPanel(
+          
+          strong("Workspace Export"),
+          p("Save all loaded datasets into a single RDS file."),
+          
+          strong("Workspace Import"),
+          p("Restore a previously saved workspace.")
+          
+        ),
+        
+        
+        
+        fileInput(
+          ns("import_workspace"),
+          "Import Workspace",
+          accept = ".rds"
+        ),
+        
+        br(),
+        
+        downloadButton(
+          ns("export_workspace"),
+          "Export Workspace"
+        ),
+        
+        hr(),
         
         selectInput(
           ns("active_dataset"),
@@ -195,7 +225,34 @@ mod_data_manager_server <- function(
         
       })
       
-      
+      observeEvent(
+        
+        input$import_workspace,
+        
+        {
+          
+          req(
+            input$import_workspace$datapath
+          )
+          
+          workspace <- readRDS(
+            input$import_workspace$datapath
+          )
+          
+          if(
+            is.list(workspace) &&
+            !is.null(workspace$datasets)
+          ) {
+            
+            datasets(
+              workspace$datasets
+            )
+            
+          }
+          
+        }
+        
+      )
       
       # ----------------------------------------------------------------------
       # Update Dataset Selector
@@ -693,7 +750,7 @@ mod_data_manager_server <- function(
         
       })
       # ----------------------------------------------------------------------
-      # Export Active Dataset
+      # Export Datasets
       # ----------------------------------------------------------------------
       
       output$save_dataset <- downloadHandler(
@@ -719,6 +776,38 @@ mod_data_manager_server <- function(
             
             file
             
+          )
+          
+        }
+        
+      )
+      
+      output$export_workspace <- downloadHandler(
+        
+        filename = function() {
+          
+          paste0(
+            format(Sys.Date(), "%Y%m%d"),
+            "_ssvl_workspace.rds"
+          )
+          
+        },
+        
+        content = function(file) {
+          
+          workspace <- list(
+            
+            version = "1.0",
+            
+            created = Sys.time(),
+            
+            datasets = datasets()
+            
+          )
+          
+          saveRDS(
+            workspace,
+            file
           )
           
         }

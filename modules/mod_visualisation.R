@@ -168,6 +168,15 @@ mod_visualisation_ui <- function(id) {
       
       hr(),
       
+      h4("NBES Heatmap"),
+      
+      plotOutput(
+        ns("nbes_heatmap"),
+        height = "700px"
+      ),
+      
+      hr(),
+      
       h4("Top Positive NBES"),
       
       DT::DTOutput(
@@ -188,7 +197,9 @@ mod_visualisation_ui <- function(id) {
       
       DT::DTOutput(
         ns("position_nbes_summary")
-      )
+      ),
+      
+      
       
     ),
     
@@ -292,6 +303,21 @@ mod_visualisation_server <- function(
         req(ds$stage == "nbes")
         
         ds$results$nbes
+        
+      })
+      
+      position_summary <- reactive({
+        
+        ds <- current_dataset()
+        
+        req(
+          ds$stage %in% c(
+            "enrichment",
+            "nbes"
+          )
+        )
+        
+        ds$results$position_summary
         
       })
       
@@ -598,7 +624,7 @@ mod_visualisation_server <- function(
       output$position_enrichment <- renderPlot({
         
         plot_position_enrichment(
-          enrichment_df()
+          position_summary()
         )
         
       })
@@ -634,7 +660,7 @@ mod_visualisation_server <- function(
       output$position_enrichment_summary <- DT::renderDT({
         
         position_summary_enrichment(
-          enrichment_df()
+          current_dataset()
         )
         
       },
@@ -657,9 +683,23 @@ mod_visualisation_server <- function(
       
       output$position_nbes <- renderPlot({
         
+        print(names(position_summary()))
+        
         plot_position_nbes(
-          nbes_df()
+          position_summary()
         )
+        
+      })
+      output$nbes_heatmap <- renderPlot({
+        
+        ds <- current_dataset()
+        
+        ht <- plot_nbes_heatmap(
+          nbes_df(),
+          ref_protein = ds$metadata$ref_protein
+        )
+        
+        draw(ht)
         
       })
       
@@ -694,7 +734,7 @@ mod_visualisation_server <- function(
       output$position_nbes_summary <- DT::renderDT({
         
         position_summary_nbes(
-          nbes_df()
+          current_dataset()
         )
         
       },

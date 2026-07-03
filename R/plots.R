@@ -158,45 +158,40 @@ plot_enrichment_distribution <- function(
     )
   
 }
-# enrichment by positon
+# ============================================================================
+# POSITION ENRICHMENT PROFILE
+# ============================================================================
+
 plot_position_enrichment <- function(
-    enrichment_df
+    position_summary
 ){
   
-  enrichment_df %>%
+  ggplot(
+    position_summary,
+    aes(
+      x = position,
+      y = mean_log2E_norm
+    )
+  ) +
     
-    mutate(
-      
-      position = as.numeric(
-        stringr::str_extract(
-          mutation,
-          "\\d+"
-        )
-      )
-      
-    ) %>%
-    
-    filter(
-      !is.na(position)
-    ) %>%
-    
-    ggplot(
-      
-      aes(
-        position,
-        log2E_norm
-      )
-      
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed"
     ) +
     
-    geom_point(
-      alpha = 0.6
-    ) +
+    geom_line() +
     
-    theme_minimal()
+    geom_point() +
+    
+    theme_minimal() +
+    
+    labs(
+      title = "Position Enrichment Profile",
+      x = "Position",
+      y = "Mean log2E_norm"
+    )
   
 }
-
 # ============================================================================
 # NBES DISTRIBUTION
 # ============================================================================
@@ -227,88 +222,185 @@ plot_nbes_distribution <- function(
 
 
 # ============================================================================
-# POSITION VS NBES
+# POSITION NBES PROFILE
 # ============================================================================
 
 plot_position_nbes <- function(
-    nbes_df
+    position_summary
 ){
   
-  nbes_df %>%
-    
-    mutate(
-      
-      position = as.numeric(
-        stringr::str_extract(
-          mutation,
-          "\\d+"
-        )
-      )
-      
-    ) %>%
-    
-    filter(
-      !is.na(position)
-    ) %>%
-    
-    ggplot(
-      
-      aes(
-        position,
-        NBES
-      )
-      
-    ) +
-    
-    geom_point(
-      alpha = 0.6
-    ) +
-    
-    theme_minimal() +
-    
-    labs(
-      title = "Position vs NBES",
-      x = "Position",
-      y = "NBES"
+  ggplot(
+    position_summary,
+    aes(
+      x = position,
+      y = mean_nbes
     )
-  
-}
-# ============================================================================
-# POSITION IMPORTANCE
-# ============================================================================
-
-plot_residue_importance <- function(residue_summary) {
-  ggplot(
-    residue_summary,
-    aes(residue, mean_abs_nbes)
   ) +
-    geom_col() +
-    labs(
-      x = "Position",
-      y = "Mean |NBES|",
-      title = "Position Importance"
-    ) +
-    theme_minimal()
-}
-# ============================================================================
-# POSITION ENRICHMENT PROFILE
-# ============================================================================
-
-plot_residue_profile <- function(residue_summary) {
-  
-  ggplot(
-    residue_summary,
-    aes(x = residue, y = mean_nbes)
-  ) +
+    
     geom_hline(
       yintercept = 0,
       linetype = "dashed"
     ) +
+    
     geom_line() +
+    
     geom_point() +
+    
+    theme_minimal() +
+    
     labs(
-      x = "Residue",
+      title = "Position NBES Profile",
+      x = "Position",
       y = "Mean NBES"
-    ) +
-    theme_minimal()
+    )
+  
+}
+
+# ============================================================================
+# enrichment heatmap
+# ============================================================================
+
+make_enrichment_heatmap <- function(
+    df,
+    value_col,
+    title,
+    ref_protein,
+    reverse = FALSE
+) {
+  
+  # ===============================
+  # STEP 1: Extract + collapse ✅
+  # ===============================
+  heat <- df %>%
+    filter(mutation != "WT") %>%
+    mutate(
+      position = as.numeric(gsub("[^0-9]", "", mutation)),
+      alt = gsub(".*[0-9]+", "", mutation),
+      value = .data[[value_col]]
+    ) %>%
+    group_by(position, alt) %>%
+    summarise(value = mean(value, na.rm = TRUE), .groups = "drop")
+  
+  # ===============================
+  # STEP 2: Full AA space ✅
+  # ===============================
+  aa_levels <- c(
+    "A","R","N","D","C","Q","E","G","H","I",
+    "L","K","M","F","P","S","T","W","Y","V","del"
+  )
+  
+  full_grid <- expand.grid(
+    position = 1:nchar(DEFAULT_REF_PROTEIN),
+    alt = aa_levels
+  )
+  
+  # ===============================
+  # STEP 3: Join ✅
+  # ===============================
+  heat <- full_grid %>%
+    left_join(heat, by = c("position", "alt"))
+  
+  # leave missing as NA
+  heat$value[is.na(heat$value)] <- NA
+  
+  # ===============================
+  # STEP 4: Wide format ✅
+  # ===============================
+  heat_wide <- heat %>%
+    pivot_wider(
+      names_from = alt,
+      values_from = value
+    )
+  
+  # ===============================
+  # STEP 5: Build matrix ✅
+  # ===============================
+  mat <- as.data.frame(heat_wide)
+  rownames(mat) <- mat$position
+  mat <- mat[, -1]
+  
+  mat_t <- t(as.matrix(mat))   # ✅ critical transpose
+  
+  # ===============================
+  # STEP 6: Order columns ✅
+  # ===============================
+  mat_plot <- mat_t[, order(as.numeric(colnames(mat_t)))]
+  
+  # ===============================
+  # STEP 7: Order rows ✅
+  # ===============================
+  rows <- rownames(mat_plot)
+  aa_rows <- sort(setdiff(rows, "del"))
+  row_order <- c(aa_rows, "del"[ "del" %in% rows ])
+  mat_plot <- mat_plot[row_order, ]
+  
+  # ===============================
+  # STEP 8: WT labels ✅
+  # ===============================
+  wt_aa <- strsplit(DEFAULT_REF_PROTEIN, "")[[1]]
+  wt_labels <- wt_aa[as.numeric(colnames(mat_plot))]
+  
+  top_anno <- HeatmapAnnotation(
+    WT = anno_text(
+      wt_labels,
+      rot = 0,
+      gp = gpar(fontsize = 10),
+      just = "center"
+    ),
+    height = unit(0.1, "cm")
+  )
+  
+  # ===============================
+  # STEP 9: Colour scale ✅
+  # ===============================
+  max_abs <- max(abs(mat_plot), na.rm = TRUE)
+  if (!is.finite(max_abs)) max_abs <- 1
+  
+  if (!reverse) {
+    col_fun <- colorRamp2(
+      c(-max_abs, 0, max_abs),
+      c("#2166AC", "#FFFFFF", "#B2182B")   # blue → white → red
+    )
+  } else {
+    col_fun <- colorRamp2(
+      c(-max_abs, 0, max_abs),
+      c("#B2182B", "#FFFFFF", "#2166AC")   # ✅ reversed
+    )
+  }
+  Heatmap(
+    mat_plot,
+    name = value_col,
+    col = col_fun,
+    na_col = "grey40",
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    show_row_names = TRUE,
+    show_column_names = TRUE,
+    column_names_centered = TRUE,
+    column_names_rot = 0,
+    column_names_gp = gpar(fontsize = 8),
+    row_names_gp = gpar(fontsize = 8),
+    top_annotation = top_anno,
+    column_title = paste0(title, "\n"),
+    column_title_gp = gpar(fontsize = 15)
+  )
+  
+}
+
+# ============================================================================
+# NBES HEATMAP
+# ============================================================================
+
+plot_nbes_heatmap <- function(
+    nbes_df,
+    ref_protein
+){
+  
+  make_enrichment_heatmap(
+    df = nbes_df,
+    value_col = "NBES",
+    title = "NBES Heatmap",
+    ref_protein = ref_protein
+  )
+  
 }
