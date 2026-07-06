@@ -18,6 +18,76 @@ mod_visualisation_ui <- function(id) {
       ns("dataset_info")
     ),
     
+    hr(),
+    
+    h4("Plot Export"),
+    
+    selectInput(
+      ns("plot_to_export"),
+      "Plot",
+      choices = c(
+        "Position NBES",
+        "Position Enrichment"
+      )
+    ),
+    
+    textInput(
+      ns("export_title"),
+      "Plot Title",
+      value = ""
+    ),
+    
+    textInput(
+      ns("export_x"),
+      "X Axis Title",
+      value = ""
+    ),
+    
+    textInput(
+      ns("export_y"),
+      "Y Axis Title",
+      value = ""
+    ),
+    
+    numericInput(
+      ns("export_width"),
+      "Width (cm)",
+      value = 20,
+      min = 1
+    ),
+    
+    numericInput(
+      ns("export_height"),
+      "Height (cm)",
+      value = 15,
+      min = 1
+    ),
+    
+    
+    numericInput(
+      ns("export_dpi"),
+      "DPI",
+      value = 300,
+      min = 72
+    ),
+    
+    selectInput(
+      ns("export_format"),
+      "Format",
+      choices = c(
+        "png",
+        "pdf",
+        "svg"
+      )
+    ),
+    
+    downloadButton(
+      ns("export_plot"),
+      "Export Plot"
+    ),
+    
+    hr(),
+    
     # ------------------------------------------------------------------------
     # Mutation Dataset QC
     # ------------------------------------------------------------------------
@@ -107,6 +177,17 @@ mod_visualisation_ui <- function(id) {
       
       hr(),
       
+      h4("Enrichment Heatmap"),
+      
+      plotOutput(
+        ns("enrichment_heatmap"),
+        height = "700px"
+      ),
+      
+      hr(),
+      
+      hr(),
+      
       h4("Top Enriched Variants"),
       
       DT::DTOutput(
@@ -173,6 +254,21 @@ mod_visualisation_ui <- function(id) {
       plotOutput(
         ns("nbes_heatmap"),
         height = "700px"
+      ),
+      
+      hr(),
+      
+      h4("Position Drilldown"),
+      
+      numericInput(
+        ns("selected_position"),
+        "Position",
+        value = 1,
+        min = 1
+      ),
+      
+      DT::DTOutput(
+        ns("position_variants")
       ),
       
       hr(),
@@ -318,6 +414,110 @@ mod_visualisation_server <- function(
         )
         
         ds$results$position_summary
+        
+      })
+      
+      export_plot_object <- reactive({
+        
+        ds <- current_dataset()
+        
+        req(
+          ds$stage %in% c(
+            "enrichment",
+            "nbes"
+          )
+        )
+        
+        if (
+          input$plot_to_export == "Position NBES" &&
+          ds$stage == "nbes"
+        ) {
+          
+          return(
+            plot_position_nbes(
+              position_summary()
+            )
+          )
+          
+        }
+        
+        if (
+          input$plot_to_export == "Position Enrichment" &&
+          ds$stage == "enrichment"
+        ) {
+          
+          return(
+            plot_position_enrichment(
+              position_summary()
+            )
+          )
+          
+        }
+        
+        NULL
+        
+      })
+      
+      output$export_plot <- downloadHandler(
+        
+        filename = function() {
+          paste0(
+            "plot_",
+            Sys.Date(),
+            ".",
+            input$export_format
+          )
+        },
+        
+        content = function(file) {
+          
+          p <- export_plot_object()
+          
+          req(p)
+          
+          p <- p +
+            
+            labs(
+              title = input$export_title,
+              x = input$export_x,
+              y = input$export_y
+            )
+          
+          ggsave(
+            filename = file,
+            plot = p,
+            width = input$export_width,
+            height = input$export_height,
+            units = "cm",
+            dpi = input$export_dpi
+          )
+          
+        }
+        
+      )
+      
+      position_variants <- reactive({
+        
+        req(
+          nbes_df(),
+          input$selected_position
+        )
+        
+        nbes_df() %>%
+          
+          mutate(
+            position = extract_position(
+              mutation
+            )
+          ) %>%
+          
+          filter(
+            position == input$selected_position
+          ) %>%
+          
+          arrange(
+            desc(NBES)
+          )
         
       })
       
@@ -629,6 +829,16 @@ mod_visualisation_server <- function(
         
       })
       
+      output$enrichment_heatmap <- renderPlot({
+        
+        ht <- plot_enrichment_heatmap(
+          enrichment_df()
+        )
+        
+        draw(ht)
+        
+      })
+      
       # ----------------------------------------------------------------------
       # Enrichment Tables
       # ----------------------------------------------------------------------
@@ -702,6 +912,16 @@ mod_visualisation_server <- function(
         draw(ht)
         
       })
+      
+      output$position_variants <- DT::renderDT({
+        
+        position_variants()
+        
+      },
+      options = list(
+        pageLength = 25,
+        scrollX = TRUE
+      ))
       
       # ----------------------------------------------------------------------
       # NBES Tables

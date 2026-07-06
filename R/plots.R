@@ -388,6 +388,24 @@ make_enrichment_heatmap <- function(
 }
 
 # ============================================================================
+# PLOT ENRICHMENT HEATMAP
+# ============================================================================
+
+plot_enrichment_heatmap <- function(
+    enrichment_df
+){
+  
+  make_enrichment_heatmap(
+    df = enrichment_df,
+    value_col = "log2E_norm",
+    title = "WT-Normalised Enrichment Heatmap",
+    reverse = FALSE
+  )
+  
+}
+
+
+# ============================================================================
 # NBES HEATMAP
 # ============================================================================
 
