@@ -37,16 +37,17 @@ top_depleted_variants <- function(
 # Variant QC Summary
 variant_qc_summary <- function(haplo_df) {
   
-  total_reads <- sum(haplo_df$count)
-  
   haplo_df %>%
     dplyr::group_by(variant_class) %>%
     dplyr::summarise(
       n_variants = dplyr::n(),
       total_reads = sum(count),
-      pct_reads = 100 * sum(count) / total_reads,
-      mean_frequency = mean(freq),
+      median_frequency = median(freq),
       .groups = "drop"
+    ) %>%
+    dplyr::mutate(
+      pct_reads = 100 * total_reads / sum(total_reads),
+      .after = total_reads
     ) %>%
     dplyr::arrange(
       dplyr::desc(total_reads)

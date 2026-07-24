@@ -1,28 +1,4 @@
-library(shiny)
-
-library(dplyr)
-library(stringr)
-
-library(ggplot2)
-library(plotly)
-library(ggrepel)
-library(ComplexHeatmap)
-library(circlize)
-library(grid)
-
-library(DT)
-
-library(r3dmol)
-library(htmlwidgets)
-
-library(uuid)
-library(tibble)
-library(purrr)
-library(tidyr)
-library(readr)
-
-# 8 GB file limit
-options(shiny.maxRequestSize = 8 * 1024^3)
+source("R/package_setup.R")
 
 source("config/defaults.R")
 
@@ -42,10 +18,17 @@ source("modules/mod_comparison.R")
 source("modules/mod_enrichment.R")
 source("modules/mod_nbes.R")
 
+check_required_packages()
+
+load_required_packages()
+
+# 8 GB file limit
+options(shiny.maxRequestSize = 8 * 1024^3)
+
 
 ui <- fluidPage(
   
-  titlePanel("NGS Workbench"),
+  titlePanel("Stone Lab SSVL Workbench"),
   
   tabsetPanel(
     id = "main_tabs",

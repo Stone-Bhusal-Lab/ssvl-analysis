@@ -39,7 +39,7 @@ plot_haplotype_distribution <- function(
     ggplot2::scale_x_log10() +
     ggplot2::theme_minimal() +
     ggplot2::labs(
-      title = "Haplotype Read Count Distribution",
+      title = "Haplotype Read Count Distribution (pre-filter)",
       x = "Read Count",
       y = "Number of Haplotypes"
     )

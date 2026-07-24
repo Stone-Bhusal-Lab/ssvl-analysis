@@ -18,7 +18,7 @@ mod_mutation_analysis_ui <- function(id){
       ),
       
       helpText(
-        "Large FASTQ files may take several minutes to upload and process."
+        "Large FASTQ files may take a short while to upload, and ~1 minute per 100k reads to process."
       ),
       
       numericInput(
@@ -229,7 +229,7 @@ mod_mutation_analysis_server <- function(id,
       req(results())
       
       plot_variant_class_distribution(
-        results()$haplo_df_raw
+        results()$haplo_df
       )
       
     })
@@ -239,7 +239,7 @@ mod_mutation_analysis_server <- function(id,
       req(results())
       
       plot_variant_class_reads(
-        results()$haplo_df_raw
+        results()$haplo_df
       )
       
     })
@@ -249,7 +249,7 @@ mod_mutation_analysis_server <- function(id,
       req(results())
       
       variant_qc_summary(
-        results()$haplo_df_raw
+        results()$haplo_df
       )
       
     },

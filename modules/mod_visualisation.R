@@ -316,7 +316,6 @@ mod_visualisation_ui <- function(id) {
         choices = c(
           "Single Mutants",
           "Filtered Variants",
-          "Raw Variants",
           "Missense",
           "Indels",
           "Frameshifts"
@@ -772,7 +771,7 @@ mod_visualisation_server <- function(
         req(ds$stage == "mutation")
         
         plot_variant_class_distribution(
-          ds$results$haplo_df_raw
+          ds$results$haplo_df
         )
         
       })
@@ -784,7 +783,7 @@ mod_visualisation_server <- function(
         req(ds$stage == "mutation")
         
         plot_variant_class_reads(
-          ds$results$haplo_df_raw
+          ds$results$haplo_df
         )
         
       })
@@ -800,7 +799,7 @@ mod_visualisation_server <- function(
         req(ds$stage == "mutation")
         
         variant_qc_summary(
-          ds$results$haplo_df_raw
+          ds$results$haplo_df
         )
         
       },
@@ -906,7 +905,6 @@ mod_visualisation_server <- function(
           nbes_df(),
           ref_protein = ds$metadata$ref_protein
         )
-        
         draw(ht)
         
       })
@@ -989,14 +987,11 @@ mod_visualisation_server <- function(
           
           input$dataset_view,
           
-          "Single Mutants" =
-            ds$results$single_mutants,
-          
-          "Filtered Variants" =
+          "All Variants" =
             ds$results$haplo_df,
           
-          "Raw Variants" =
-            ds$results$haplo_df_raw,
+          "Single Mutants" =
+            ds$results$single_mutants,
           
           "Missense" =
             ds$results$missense,

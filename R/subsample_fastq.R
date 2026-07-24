@@ -6,12 +6,18 @@ head_fastq <- function(
   
   n_lines <- n_reads * 4
   
-  con <- file(input_fastq, open = "r")
+  con_in <- if (
+    grepl("\\.gz$", input_fastq)
+  ) {
+    gzfile(input_fastq, "rt")
+  } else {
+    file(input_fastq, "r")
+  }
   
-  on.exit(close(con))
+  on.exit(close(con_in))
   
   lines <- readLines(
-    con,
+    con_in,
     n = n_lines
   )
   
@@ -21,3 +27,4 @@ head_fastq <- function(
   )
   
 }
+

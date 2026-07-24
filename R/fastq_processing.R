@@ -373,6 +373,13 @@ process_haplotypes <- function(
   
   message("Extracting inserts...")
   
+  t_extract <- Sys.time()
+  
+  n_cores <- max(
+    1,
+    parallel::detectCores() - 1
+  )
+  
   seqs <- vapply(
     seqs_raw,
     extract_both,
@@ -380,26 +387,31 @@ process_haplotypes <- function(
     left_flank = left_flank,
     right_flank = right_flank
   )
-  
-  seqs <- seqs[!is.na(seqs)]
-  
-  message(
-    "Valid inserts: ",
-    length(seqs)
-  )
   message(
     "Insert extraction took ",
     round(
       as.numeric(
         difftime(
           Sys.time(),
-          t,
+          t_extract,
           units = "secs"
         )
       ),
       2
     ),
     " sec"
+  )
+  
+  seqs <- unlist(
+    seqs,
+    use.names = FALSE
+  )
+  
+  seqs <- seqs[!is.na(seqs)]
+  
+  message(
+    "Valid inserts: ",
+    length(seqs)
   )
   
   message("Counting haplotypes...")
@@ -426,23 +438,29 @@ process_haplotypes <- function(
       freq >= min_freq
   ]
   t <- Sys.time()
+  message(
+    "Unique haplotypes (raw): ",
+    nrow(haplo_df_raw)
+  )
+  
+  message(
+    "Unique haplotypes (filtered): ",
+    nrow(haplo_df)
+  )
+  message(
+    "Mean insert length: ",
+    round(
+      mean(
+        nchar(haplo_df_raw$dna)
+      ),
+      1
+    )
+  )
+  
   message("Translating proteins...")
   
-  # Translate raw table
-  haplo_df_raw[
-    ,
-    protein := vapply(
-      dna,
-      translate_seq,
-      character(1)
-    )
-  ]
+  # Translate filtered table only
   
-  haplo_df_raw <- haplo_df_raw[
-    !is.na(protein)
-  ]
-  
-  # Translate filtered table
   haplo_df[
     ,
     protein := vapply(
@@ -452,10 +470,6 @@ process_haplotypes <- function(
     )
   ]
   
-  
-  haplo_df <- haplo_df[
-    !is.na(protein)
-  ]
   message(
     "Translation took ",
     round(
@@ -539,14 +553,10 @@ annotate_variants <- function(
     df
   }
   
-  # Annotate BOTH filtered and unfiltered tables
+  # Annotate filtered table only
+  
   haplo_df <- annotate_table(
     haplo_df,
-    ref_protein
-  )
-  
-  haplo_df_raw <- annotate_table(
-    haplo_df_raw,
     ref_protein
   )
   
