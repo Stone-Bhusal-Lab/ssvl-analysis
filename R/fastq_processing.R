@@ -15,21 +15,31 @@
 
 extract_insert <- function(seq, left, right) {
   
-  start <- regexpr(left, seq)[1]
+  start <- regexpr(
+    left,
+    seq,
+    fixed = TRUE
+  )[1]
   
-  if (start == -1)
+  if (start < 1)
     return(NA_character_)
   
   start <- start + nchar(left)
   
-  sub_seq <- substring(seq, start)
+  end <- regexpr(
+    right,
+    substring(seq, start),
+    fixed = TRUE
+  )[1]
   
-  end <- regexpr(right, sub_seq)[1]
-  
-  if (end == -1)
+  if (end < 1)
     return(NA_character_)
   
-  substring(sub_seq, 1, end - 1)
+  substring(
+    seq,
+    start,
+    start + end - 2
+  )
 }
 
 # --------------------------------------------------
@@ -63,25 +73,26 @@ extract_both <- function(seq, left_flank, right_flank) {
 
 translate_seq <- function(seq) {
   
-  seq <- gsub("[^ACGT]", "", seq)
+  n <- nchar(seq)
   
-  if (nchar(seq) < 3)
+  if (n < 3)
     return(NA_character_)
   
-  seq <- substr(
+  trimmed <- substr(
     seq,
     1,
-    nchar(seq) - nchar(seq) %% 3
+    n - (n %% 3)
   )
   
   tryCatch(
     as.character(
       Biostrings::translate(
-        Biostrings::DNAString(seq)
+        Biostrings::DNAString(trimmed)
       )
     ),
     error = function(e) NA_character_
   )
+  
 }
 
 # --------------------------------------------------
@@ -180,24 +191,32 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
     p <- strsplit(prot, "")[[1]]
     r <- strsplit(ref, "")[[1]]
     
-    muts <- character()
-    pos_df <- list()
+    idx <- which(p != r)
     
-    for (i in seq_along(p)) {
+    if (length(idx)) {
       
-      if (p[i] != r[i]) {
-        
-        muts <- c(
-          muts,
-          paste0(r[i], i, p[i])
-        )
-        
-        pos_df[[length(pos_df) + 1]] <- data.frame(
-          variant = paste0(r[i], i, p[i]),
-          count = count,
-          freq = freq
-        )
-      }
+      muts <- paste0(
+        r[idx],
+        idx,
+        p[idx]
+      )
+      
+      pos_df <- lapply(
+        muts,
+        function(x) {
+          data.frame(
+            variant = x,
+            count = count,
+            freq = freq
+          )
+        }
+      )
+      
+    } else {
+      
+      muts <- character()
+      pos_df <- list()
+      
     }
     
     label <- paste(muts, collapse = ";")
@@ -205,13 +224,15 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
     if (label == "")
       label <- "WT"
     
-    return(list(
-      label = label,
-      pos = if (length(pos_df))
-        dplyr::bind_rows(pos_df)
-      else
-        NULL
-    ))
+    return(
+      list(
+        label = label,
+        pos = if (length(pos_df))
+          dplyr::bind_rows(pos_df)
+        else
+          NULL
+      )
+    )
   }
   
   if (prot == ref)
@@ -303,17 +324,20 @@ classify_variant <- function(prot, ref) {
 
 collapse_variants <- function(df) {
   
-  df %>%
-    dplyr::group_by(mutation) %>%
-    dplyr::summarise(
+  as.data.table(df)[
+    ,
+    .(
       count = sum(count),
-      freq = sum(freq),
-      .groups = "drop"
-    ) %>%
-    dplyr::arrange(
-      desc(mutation == "WT"),
-      desc(freq)
+      freq = sum(freq)
+    ),
+    by = mutation
+  ][
+    order(
+      -as.integer(mutation == "WT"),
+      -freq
     )
+  ]
+  
 }
 
 # ==================================================
@@ -329,8 +353,9 @@ process_haplotypes <- function(
     min_count = 10,
     min_freq = 0
 ) {
-  
+  t_total <- Sys.time()
   message("Reading FASTQ...")
+  
   
   lines <- readLines(fastq_file)
   
@@ -344,6 +369,7 @@ process_haplotypes <- function(
     "Total reads: ",
     length(seqs_raw)
   )
+  t <- Sys.time()
   
   message("Extracting inserts...")
   
@@ -361,24 +387,30 @@ process_haplotypes <- function(
     "Valid inserts: ",
     length(seqs)
   )
+  message(
+    "Insert extraction took ",
+    round(
+      as.numeric(
+        difftime(
+          Sys.time(),
+          t,
+          units = "secs"
+        )
+      ),
+      2
+    ),
+    " sec"
+  )
   
   message("Counting haplotypes...")
   
   haplo_df <- data.table::data.table(
-    seqs = seqs
-  )
-  
-  haplo_df <- haplo_df[
+    dna = seqs
+  )[
     ,
     .(count = .N),
-    by = seqs
+    by = dna
   ]
-  
-  data.table::setnames(
-    haplo_df,
-    "seqs",
-    "dna"
-  )
   
   haplo_df[
     ,
@@ -393,42 +425,78 @@ process_haplotypes <- function(
     count >= min_count &
       freq >= min_freq
   ]
-  
+  t <- Sys.time()
   message("Translating proteins...")
   
   # Translate raw table
-  haplo_df_raw$protein <- vapply(
-    haplo_df_raw$dna,
-    translate_seq,
-    character(1)
-  )
+  haplo_df_raw[
+    ,
+    protein := vapply(
+      dna,
+      translate_seq,
+      character(1)
+    )
+  ]
   
   haplo_df_raw <- haplo_df_raw[
     !is.na(protein)
   ]
   
   # Translate filtered table
-  haplo_df$protein <- vapply(
-    haplo_df$dna,
-    translate_seq,
-    character(1)
-  )
+  haplo_df[
+    ,
+    protein := vapply(
+      dna,
+      translate_seq,
+      character(1)
+    )
+  ]
+  
   
   haplo_df <- haplo_df[
     !is.na(protein)
   ]
+  message(
+    "Translation took ",
+    round(
+      as.numeric(
+        difftime(
+          Sys.time(),
+          t,
+          units = "secs"
+        )
+      ),
+      2
+    ),
+    " sec"
+  )
+  
   qc <- list(
     total_reads = length(seqs_raw),
     valid_inserts = length(seqs),
     unique_haplotypes_raw = nrow(haplo_df_raw),
     unique_haplotypes_filtered = nrow(haplo_df)
   )
-  
+  message(
+    "Total runtime: ",
+    round(
+      as.numeric(
+        difftime(
+          Sys.time(),
+          t_total,
+          units = "secs"
+        )
+      ),
+      2
+    ),
+    " sec"
+  )
   list(
     haplo_df = haplo_df,
     haplo_df_raw = haplo_df_raw,
     qc = qc
   )
+  
 }
 
 # ==================================================

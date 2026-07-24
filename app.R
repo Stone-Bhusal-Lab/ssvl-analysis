@@ -21,6 +21,9 @@ library(purrr)
 library(tidyr)
 library(readr)
 
+# 8 GB file limit
+options(shiny.maxRequestSize = 8 * 1024^3)
+
 source("config/defaults.R")
 
 source("R/datasets.R")

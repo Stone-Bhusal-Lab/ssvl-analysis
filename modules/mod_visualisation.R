@@ -893,8 +893,6 @@ mod_visualisation_server <- function(
       
       output$position_nbes <- renderPlot({
         
-        print(names(position_summary()))
-        
         plot_position_nbes(
           position_summary()
         )

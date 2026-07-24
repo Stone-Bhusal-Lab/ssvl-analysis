@@ -223,7 +223,7 @@ create_enrichment_dataset <- function(
         enrichment_results$enrichment_df,
       
       position_summary =
-        summarise_enrichment_by_position(
+        summarise_enrichment_norm_by_position(
           enrichment_results$enrichment_df
         ),
       

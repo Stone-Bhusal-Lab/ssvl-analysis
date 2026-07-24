@@ -17,6 +17,10 @@ mod_mutation_analysis_ui <- function(id){
         "FASTQ"
       ),
       
+      helpText(
+        "Large FASTQ files may take several minutes to upload and process."
+      ),
+      
       numericInput(
         ns("min_count"),
         "Minimum Count",

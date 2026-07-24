@@ -10,7 +10,7 @@
 # G56*   -> 56
 # ------------------------------------------------------------
 
-extract_position_position <- function(mutation) {
+extract_position <- function(mutation) {
   
   position <- gsub("[A-Za-z\\*]", "", mutation)
   
@@ -34,7 +34,7 @@ add_position_column <- function(df,
       position = ifelse(
         .data[[mutation_col]] == "WT",
         NA_real_,
-        extract_position_position(.data[[mutation_col]])
+        extract_position(.data[[mutation_col]])
       )
     )
 }
