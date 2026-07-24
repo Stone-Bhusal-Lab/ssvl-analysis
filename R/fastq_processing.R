@@ -13,7 +13,11 @@
 # Extract insert between flanking sequences
 # --------------------------------------------------
 
-extract_insert <- function(seq, left, right) {
+extract_insert <- function(
+    seq,
+    left,
+    right
+) {
   
   start <- regexpr(
     left,
@@ -40,20 +44,33 @@ extract_insert <- function(seq, left, right) {
     start,
     start + end - 2
   )
+  
 }
 
 # --------------------------------------------------
 # Try forward and reverse-complement orientation
 # --------------------------------------------------
 
-extract_both <- function(seq, left_flank, right_flank) {
+extract_both <- function(
+    seq,
+    left_flank,
+    right_flank
+) {
   
-  seq <- gsub("[^ACGT]", "", seq)
+  seq <- gsub(
+    "[^ACGT]",
+    "",
+    seq
+  )
   
   if (nchar(seq) < 10)
     return(NA_character_)
   
-  x <- extract_insert(seq, left_flank, right_flank)
+  x <- extract_insert(
+    seq,
+    left_flank,
+    right_flank
+  )
   
   if (!is.na(x))
     return(x)
@@ -64,7 +81,12 @@ extract_both <- function(seq, left_flank, right_flank) {
     )
   )
   
-  extract_insert(rc, left_flank, right_flank)
+  extract_insert(
+    rc,
+    left_flank,
+    right_flank
+  )
+  
 }
 
 # --------------------------------------------------
@@ -90,7 +112,9 @@ translate_seq <- function(seq) {
         Biostrings::DNAString(trimmed)
       )
     ),
-    error = function(e) NA_character_
+    error = function(e) {
+      NA_character_
+    }
   )
   
 }
@@ -107,7 +131,11 @@ align_pair <- function(a, b) {
   n <- length(p)
   m <- length(r)
   
-  score <- matrix(0, n + 1, m + 1)
+  score <- matrix(
+    0,
+    n + 1,
+    m + 1
+  )
   
   gap <- -1
   match <- 1
@@ -120,17 +148,24 @@ align_pair <- function(a, b) {
     score[1, j] <- (j - 1) * gap
   
   for (i in 2:(n + 1)) {
+    
     for (j in 2:(m + 1)) {
       
       score[i, j] <- max(
         score[i - 1, j - 1] +
-          ifelse(p[i - 1] == r[j - 1], match, mismatch),
+          ifelse(
+            p[i - 1] == r[j - 1],
+            match,
+            mismatch
+          ),
         
         score[i - 1, j] + gap,
         
         score[i, j - 1] + gap
       )
+      
     }
+    
   }
   
   i <- n + 1
@@ -146,47 +181,98 @@ align_pair <- function(a, b) {
       j > 1 &&
       score[i, j] ==
       score[i - 1, j - 1] +
-      ifelse(p[i - 1] == r[j - 1], match, mismatch)
+      ifelse(
+        p[i - 1] == r[j - 1],
+        match,
+        mismatch
+      )
     ) {
       
-      pa <- c(p[i - 1], pa)
-      ra <- c(r[j - 1], ra)
+      pa <- c(
+        p[i - 1],
+        pa
+      )
+      
+      ra <- c(
+        r[j - 1],
+        ra
+      )
       
       i <- i - 1
       j <- j - 1
       
     } else if (
       i > 1 &&
-      score[i, j] == score[i - 1, j] + gap
+      score[i, j] ==
+      score[i - 1, j] + gap
     ) {
       
-      pa <- c(p[i - 1], pa)
-      ra <- c("-", ra)
+      pa <- c(
+        p[i - 1],
+        pa
+      )
+      
+      ra <- c(
+        "-",
+        ra
+      )
       
       i <- i - 1
       
     } else {
       
-      pa <- c("-", pa)
-      ra <- c(r[j - 1], ra)
+      pa <- c(
+        "-",
+        pa
+      )
+      
+      ra <- c(
+        r[j - 1],
+        ra
+      )
       
       j <- j - 1
+      
     }
+    
   }
   
   list(
     prot = paste(pa, collapse = ""),
-    ref  = paste(ra, collapse = "")
+    ref = paste(ra, collapse = "")
   )
+  
 }
 
 # --------------------------------------------------
 # Mutation annotation
 # --------------------------------------------------
 
-annotate <- function(prot, ref, count = NULL, freq = NULL) {
+annotate <- function(
+    prot,
+    ref,
+    count = NULL,
+    freq = NULL
+) {
   
-  if (nchar(prot) == nchar(ref) && !grepl("\\*", prot)) {
+  if (
+    is.na(prot) ||
+    is.na(ref)
+  ) {
+    
+    return(
+      list(
+        label = "INVALID",
+        pos = NULL
+      )
+    )
+    
+  }
+  
+  if (
+    nchar(prot) == nchar(ref) &&
+    !grepl("\\*", prot)
+  ) {
     
     p <- strsplit(prot, "")[[1]]
     r <- strsplit(ref, "")[[1]]
@@ -204,11 +290,13 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
       pos_df <- lapply(
         muts,
         function(x) {
+          
           data.frame(
             variant = x,
             count = count,
             freq = freq
           )
+          
         }
       )
       
@@ -219,7 +307,10 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
       
     }
     
-    label <- paste(muts, collapse = ";")
+    label <- paste(
+      muts,
+      collapse = ";"
+    )
     
     if (label == "")
       label <- "WT"
@@ -227,12 +318,14 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
     return(
       list(
         label = label,
-        pos = if (length(pos_df))
-          dplyr::bind_rows(pos_df)
+        pos =
+          if (length(pos_df))
+            dplyr::bind_rows(pos_df)
         else
           NULL
       )
     )
+    
   }
   
   if (prot == ref)
@@ -241,12 +334,23 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
   if (grepl("\\*", prot))
     return(list(label = "STOP"))
   
-  aln <- align_pair(prot, ref)
+  aln <- align_pair(
+    prot,
+    ref
+  )
   
-  p <- strsplit(aln$prot, "")[[1]]
-  r <- strsplit(aln$ref, "")[[1]]
+  p <- strsplit(
+    aln$prot,
+    ""
+  )[[1]]
+  
+  r <- strsplit(
+    aln$ref,
+    ""
+  )[[1]]
   
   ref_pos <- 0
+  
   muts <- character()
   pos_df <- list()
   
@@ -255,18 +359,29 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
     if (r[i] != "-")
       ref_pos <- ref_pos + 1
     
-    if (p[i] == "-" && r[i] != "-") {
+    if (
+      p[i] == "-" &&
+      r[i] != "-"
+    ) {
+      
+      label <- paste0(
+        r[i],
+        ref_pos,
+        "del"
+      )
       
       muts <- c(
         muts,
-        paste0(r[i], ref_pos, "del")
+        label
       )
       
-      pos_df[[length(pos_df) + 1]] <- data.frame(
-        variant = paste0(r[i], ref_pos, "del"),
-        count = count,
-        freq = freq
-      )
+      pos_df[[length(pos_df) + 1]] <-
+        data.frame(
+          variant = label,
+          count = count,
+          freq = freq
+        )
+      
     }
     
     if (
@@ -275,33 +390,50 @@ annotate <- function(prot, ref, count = NULL, freq = NULL) {
       r[i] != "-"
     ) {
       
-      muts <- c(
-        muts,
-        paste0(r[i], ref_pos, p[i])
+      label <- paste0(
+        r[i],
+        ref_pos,
+        p[i]
       )
       
-      pos_df[[length(pos_df) + 1]] <- data.frame(
-        variant = paste0(r[i], ref_pos, p[i]),
-        count = count,
-        freq = freq
+      muts <- c(
+        muts,
+        label
       )
+      
+      pos_df[[length(pos_df) + 1]] <-
+        data.frame(
+          variant = label,
+          count = count,
+          freq = freq
+        )
+      
     }
+    
   }
   
   list(
-    label = paste(muts, collapse = ";"),
-    pos = if (length(pos_df))
-      dplyr::bind_rows(pos_df)
+    label = paste(
+      muts,
+      collapse = ";"
+    ),
+    pos =
+      if (length(pos_df))
+        dplyr::bind_rows(pos_df)
     else
       NULL
   )
+  
 }
 
 # --------------------------------------------------
 # Variant classification
 # --------------------------------------------------
 
-classify_variant <- function(prot, ref) {
+classify_variant <- function(
+    prot,
+    ref
+) {
   
   if (prot == ref)
     return("WT")
@@ -316,6 +448,7 @@ classify_variant <- function(prot, ref) {
     return("inframe_deletion")
   
   "frameshift"
+  
 }
 
 # --------------------------------------------------
@@ -341,7 +474,6 @@ collapse_variants <- function(df) {
 }
 
 # ==================================================
-# STEP 2 PIPELINE
 # FASTQ -> HAPLOTYPE TABLE
 # ==================================================
 
@@ -353,14 +485,21 @@ process_haplotypes <- function(
     min_count = 10,
     min_freq = 0
 ) {
+  
   t_total <- Sys.time()
+  
   message("Reading FASTQ...")
   
-  
-  lines <- readLines(fastq_file)
+  lines <- readLines(
+    fastq_file
+  )
   
   seqs_raw <- lines[
-    seq(2, length(lines), 4)
+    seq(
+      2,
+      length(lines),
+      4
+    )
   ]
   
   rm(lines)
@@ -369,16 +508,8 @@ process_haplotypes <- function(
     "Total reads: ",
     length(seqs_raw)
   )
-  t <- Sys.time()
-  
-  message("Extracting inserts...")
   
   t_extract <- Sys.time()
-  
-  n_cores <- max(
-    1,
-    parallel::detectCores() - 1
-  )
   
   seqs <- vapply(
     seqs_raw,
@@ -387,6 +518,11 @@ process_haplotypes <- function(
     left_flank = left_flank,
     right_flank = right_flank
   )
+  
+  seqs <- seqs[
+    !is.na(seqs)
+  ]
+  
   message(
     "Insert extraction took ",
     round(
@@ -401,13 +537,6 @@ process_haplotypes <- function(
     ),
     " sec"
   )
-  
-  seqs <- unlist(
-    seqs,
-    use.names = FALSE
-  )
-  
-  seqs <- seqs[!is.na(seqs)]
   
   message(
     "Valid inserts: ",
@@ -437,7 +566,7 @@ process_haplotypes <- function(
     count >= min_count &
       freq >= min_freq
   ]
-  t <- Sys.time()
+  
   message(
     "Unique haplotypes (raw): ",
     nrow(haplo_df_raw)
@@ -447,19 +576,10 @@ process_haplotypes <- function(
     "Unique haplotypes (filtered): ",
     nrow(haplo_df)
   )
-  message(
-    "Mean insert length: ",
-    round(
-      mean(
-        nchar(haplo_df_raw$dna)
-      ),
-      1
-    )
-  )
+  
+  t_translate <- Sys.time()
   
   message("Translating proteins...")
-  
-  # Translate filtered table only
   
   haplo_df[
     ,
@@ -470,13 +590,17 @@ process_haplotypes <- function(
     )
   ]
   
+  haplo_df <- haplo_df[
+    !is.na(protein)
+  ]
+  
   message(
     "Translation took ",
     round(
       as.numeric(
         difftime(
           Sys.time(),
-          t,
+          t_translate,
           units = "secs"
         )
       ),
@@ -491,6 +615,7 @@ process_haplotypes <- function(
     unique_haplotypes_raw = nrow(haplo_df_raw),
     unique_haplotypes_filtered = nrow(haplo_df)
   )
+  
   message(
     "Total runtime: ",
     round(
@@ -505,6 +630,7 @@ process_haplotypes <- function(
     ),
     " sec"
   )
+  
   list(
     haplo_df = haplo_df,
     haplo_df_raw = haplo_df_raw,
@@ -516,13 +642,17 @@ process_haplotypes <- function(
 # ==================================================
 # HAPLOTYPE TABLE -> MUTATION COUNTS
 # ==================================================
+
 annotate_variants <- function(
     haplo_df,
     haplo_df_raw,
     ref_protein
 ) {
   
-  annotate_table <- function(df, ref_protein) {
+  annotate_table <- function(
+    df,
+    ref_protein
+  ) {
     
     ann <- mapply(
       annotate,
@@ -547,13 +677,15 @@ annotate_variants <- function(
     )
     
     df$n_mut <- lengths(
-      strsplit(df$mutation, ";")
+      strsplit(
+        df$mutation,
+        ";"
+      )
     )
     
     df
+    
   }
-  
-  # Annotate filtered table only
   
   haplo_df <- annotate_table(
     haplo_df,
@@ -561,37 +693,42 @@ annotate_variants <- function(
   )
   
   single_df <- haplo_df[
-    (haplo_df$n_mut == 1 |
-       haplo_df$mutation == "WT") &
+    (
+      haplo_df$n_mut == 1 |
+        haplo_df$mutation == "WT"
+    ) &
       haplo_df$mutation != "STOP",
   ]
-  
-  single_collapsed <- collapse_variants(single_df)
-  
-  missense_df <- collapse_variants(
-    haplo_df[haplo_df$variant_class == "missense", ]
-  )
-  
-  indel_df <- collapse_variants(
-    haplo_df[haplo_df$variant_class == "inframe_deletion", ]
-  )
-  
-  frameshift_df <- collapse_variants(
-    haplo_df[haplo_df$variant_class == "frameshift", ]
-  )
   
   list(
     haplo_df = haplo_df,
     haplo_df_raw = haplo_df_raw,
-    single_mutants = single_collapsed,
-    missense = missense_df,
-    indels = indel_df,
-    frameshifts = frameshift_df
+    single_mutants = collapse_variants(single_df),
+    missense = collapse_variants(
+      haplo_df[
+        haplo_df$variant_class == "missense",
+      ]
+    ),
+    indels = collapse_variants(
+      haplo_df[
+        haplo_df$variant_class ==
+          "inframe_deletion",
+      ]
+    ),
+    frameshifts = collapse_variants(
+      haplo_df[
+        haplo_df$variant_class ==
+          "frameshift",
+      ]
+    )
   )
+  
 }
+
 # ==================================================
-# COMBINE INTO SINGLE WRAPPER FUNCTION
+# WRAPPER
 # ==================================================
+
 run_mutation_analysis <- function(
     fastq_file,
     ref_protein,
@@ -619,5 +756,5 @@ run_mutation_analysis <- function(
   variant_res$qc <- haplo_res$qc
   
   variant_res
+  
 }
-
